@@ -38,3 +38,21 @@ out/
 
 ##application.properties
 backend/src/main/resources/application.properties
+
+# backend
+/backend/build
+/backend/.gradle
+/backend/out
+
+# frontend
+/frontend/node_modules
+/frontend/dist
+
+# crawler
+/crawler/venv
+__pycache__
+
+# common
+.env
+.idea
+*.log
