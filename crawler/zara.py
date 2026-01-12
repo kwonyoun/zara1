@@ -1,7 +1,11 @@
 from playwright.sync_api import sync_playwright
 import time
+import csv
+import os
 
 LIST_URL = "https://www.zara.com/kr/ko/woman-tshirts-l1362.html"
+DATA_DIR = "data"
+CSV_PATH = os.path.join(DATA_DIR, "zara_woman_tshirts.csv")
 
 
 def log(msg):
@@ -32,7 +36,7 @@ def scroll_to_bottom(page, wait_selector):
 def crawl_zara_texts():
     log("크롤링 시작")
 
-    texts = []
+    items = []
 
     with sync_playwright() as p:
         browser = p.chromium.launch(
@@ -62,7 +66,6 @@ def crawl_zara_texts():
         except:
             log("쿠키 없음")
 
-        # ⭐ selector
         INFO_SELECTOR = ".product-grid-product-info__main-info h3"
         PRICE_SELECTOR = (
             ".product-grid-product-info__product-price "
@@ -72,36 +75,62 @@ def crawl_zara_texts():
         log("상품 최초 로딩 대기")
         page.wait_for_selector(INFO_SELECTOR, timeout=30000)
 
-        # ✅ 여기서 전체 스크롤
         log("전체 상품 로딩을 위해 스크롤 시작")
         scroll_to_bottom(page, INFO_SELECTOR)
 
-        ps = page.query_selector_all(INFO_SELECTOR)
+        names = page.query_selector_all(INFO_SELECTOR)
         prices = page.query_selector_all(PRICE_SELECTOR)
 
-        log(f"h3 태그 개수: {len(ps)}")
+        log(f"h3 태그 개수: {len(names)}")
         log(f"가격 태그 개수: {len(prices)}")
 
-        for i in range(min(len(ps), len(prices))):
-            name = ps[i].inner_text().strip()
-            price = prices[i].inner_text().strip()
+        for i in range(min(len(names), len(prices))):
+            name = names[i].inner_text().strip().replace("\\", "")
 
-            texts.append({
+            # 원본 가격 텍스트 (표시용)
+            price_text = prices[i].inner_text().strip().replace("\\", "")
+
+            # 숫자 가격 (DB/계산용)
+            price = int(
+                price_text
+                .replace("₩", "")
+                .replace(",", "")
+                .strip()
+            )
+
+            items.append({
                 "name": name,
-                "price": price
+                "price": price,
+                "price_text": price_text
             })
 
         browser.close()
 
-    log(f"수집 완료: {len(texts)}개")
-    return texts
+    log(f"수집 완료: {len(items)}개")
+    return items
+
+
+def save_to_csv(items):
+    os.makedirs(DATA_DIR, exist_ok=True)
+
+    with open(CSV_PATH, "w", newline="", encoding="utf-8-sig") as f:
+        writer = csv.DictWriter(
+            f,
+            fieldnames=["name", "price", "price_text"]
+        )
+        writer.writeheader()
+        writer.writerows(items)
+
+    log(f"CSV 저장 완료 → {CSV_PATH}")
 
 
 def main():
     items = crawl_zara_texts()
+    save_to_csv(items)
 
-    for i, item in enumerate(items, start=1):
-        print(f"{i}. {item['name']} | {item['price']}")
+    # 일부 출력 확인
+    for i, item in enumerate(items[:20], start=1):
+        print(f"{i}. {item['name']} | {item['price_text']} ({item['price']})")
 
 
 if __name__ == "__main__":
