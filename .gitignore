@@ -37,7 +37,7 @@ out/
 .vscode/
 
 ##application.properties
-backend/src/main/resources/application.properties
+src/main/resources/application.properties
 
 # backend
 /backend/build
